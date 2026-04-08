@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NULL PROTOCOL - Admin Console</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0c15;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #e2e8f0;
+        }
+
+        /* Admin Login Overlay */
+        .admin-login {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 20% 0%, #0ea5e9, #020617);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-card {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            width: 360px;
+            padding: 28px 24px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .login-header i {
+            font-size: 40px;
+            color: #00E1FF;
+            background: rgba(0, 225, 255, 0.1);
+            padding: 12px;
+            border-radius: 60px;
+        }
+
+        .login-header h2 {
+            margin-top: 12px;
+            font-size: 22px;
+        }
+
+        .login-input {
+            width: 100%;
+            background: #020617;
+            border: 1px solid #334155;
+            border-radius: 40px;
+            padding: 10px 16px;
+            margin-bottom: 14px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .login-input:focus {
+            border-color: #00E1FF;
+            box-shadow: 0 0 0 2px rgba(0, 225, 255, 0.2);
+        }
+
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #00E1FF, #00FFC6);
+            border: none;
+            border-radius: 40px;
+            padding: 10px;
+            font-weight: bold;
+            color: #020617;
+            cursor: pointer;
+            font-size: 15px;
+            margin-top: 8px;
+            transition: 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(0, 225, 255, 0.4);
+        }
+
+        .login-error {
+            color: #fb7185;
+            font-size: 12px;
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        /* Admin Dashboard */
+        .admin-dashboard {
+            display: none;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: #1e293b;
+            border-radius: 60px;
+            padding: 6px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            border: 1px solid #334155;
+        }
+
+        .nav-item {
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: 0.2s;
+            background: transparent;
+            color: #94a3b8;
+        }
+
+        .nav-item i {
+            margin-right: 8px;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #00E1FF, #00FFC6);
+            color: #020617;
+            box-shadow: 0 2px 8px rgba(0, 225, 255, 0.4);
+        }
+
+        .logout-btn {
+            margin-left: auto;
+            background: #ef4444;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* Cards & Tables */
+        .card {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid #334155;
+        }
+
+        .card h3 {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #00E1FF;
+        }
+
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #94a3b8;
+        }
+
+        input, select, textarea {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 8px 12px;
+            color: white;
+            width: 100%;
+            font-size: 13px;
+        }
+
+        button {
+            background: #00E1FF;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+
+        th {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-blocked {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-active {
+            background: #22c55e;
+            color: #020617;
+        }
+
+        .search-logs {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .refresh-icon {
+            cursor: pointer;
+            margin-left: 12px;
+            color: #00E1FF;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Admin Login Overlay -->
+<div id="adminLogin" class="admin-login">
+    <div class="login-card">
+        <div class="login-header">
+            <i class="fa-solid fa-shield-halved"></i>
+            <h2>Admin Authentication</h2>
+            <div style="font-size: 12px; color: #94a3b8;">4‑step secure access</div>
+        </div>
+        <input type="text" id="adminUsername" class="login-input" placeholder="Username">
+        <input type="password" id="adminPassword" class="login-input" placeholder="Password">
+        <input type="text" id="adminPin" class="login-input" placeholder="4-digit PIN" maxlength="4">
+        <input type="text" id="adminSecurityKey" class="login-input" placeholder="Security Key">
+        <button id="adminLoginBtn" class="login-btn"><i class="fa-solid fa-key"></i> Unlock Console</button>
+        <div id="adminLoginError" class="login-error"></div>
+    </div>
+</div>
+
+<!-- Admin Dashboard -->
+<div id="adminDashboard" class="admin-dashboard">
+    <div class="navbar">
+        <div class="nav-item active" data-tab="users"><i class="fa-solid fa-users"></i> Users</div>
+        <div class="nav-item" data-tab="api"><i class="fa-solid fa-plug"></i> API Configs</div>
+        <div class="nav-item" data-tab="logs"><i class="fa-solid fa-history"></i> Search Logs</div>
+        <div class="nav-item" data-tab="message"><i class="fa-solid fa-message"></i> Send Message</div>
+        <button id="logoutBtn" class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Logout</button>
+    </div>
+
+    <!-- Users Tab -->
+    <div id="usersTab" class="tab active">
+        <div class="card">
+            <h3><i class="fa-solid fa-user-plus"></i> Create New User</h3>
+            <div class="form-row">
+                <div class="form-group"><label>User ID *</label><input type="text" id="newUserId" placeholder="unique_user_id"></div>
+                <div class="form-group"><label>Username</label><input type="text" id="newUsername" placeholder="display name"></div>
+                <div class="form-group"><label>Email</label><input type="email" id="newEmail" placeholder="user@example.com"></div>
+                <div class="form-group"><label>Password *</label><input type="password" id="newPassword" placeholder="********"></div>
+                <div class="form-group"><label>Daily Limit</label><input type="number" id="newLimit" value="100"></div>
+                <div><button id="createUserBtn"><i class="fa-solid fa-save"></i> Create</button></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3><i class="fa-solid fa-database"></i> Registered Users <span id="userCount"></span></h3>
+            <div style="overflow-x: auto;">
+                <table id="usersTable">
+                    <thead>
+                        <tr><th>User ID</th><th>Username</th><th>Email</th><th>Daily Limit</th><th>Searches Today</th><th>Status</th><th>Admin Message</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Configs Tab -->
+    <div id="apiTab" class="tab" style="display:none;">
+        <div class="card">
+            <h3><i class="fa-solid fa-sliders-h"></i> API Endpoints Configuration</h3>
+            <div style="overflow-x: auto;">
+                <table id="apiTable">
+                    <thead>
+                        <tr><th>API Key</th><th>URL</th><th>Param</th><th>Description</th><th>Blacklist (comma)</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="apiTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Logs Tab -->
+    <div id="logsTab" class="tab" style="display:none;">
+        <div class="card">
+            <h3><i class="fa-solid fa-magnifying-glass"></i> Search Logs <i class="fa-solid fa-rotate-right refresh-icon" id="refreshLogsIcon"></i></h3>
+            <div class="form-row">
+                <div class="form-group"><label>Filter by User ID</label><select id="logUserFilter"><option value="">All Users</option></select></div>
+                <div><button id="applyLogFilter"><i class="fa-solid fa-filter"></i> Filter</button></div>
+            </div>
+            <div class="search-logs">
+                <table id="logsTable">
+                    <thead><tr><th>User ID</th><th>API Type</th><th>Query</th><th>Timestamp</th><th>Success</th></tr></thead>
+                    <tbody id="logsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Message Tab -->
+    <div id="messageTab" class="tab" style="display:none;">
+        <div class="card">
+            <h3><i class="fa-solid fa-envelope"></i> Send Message to User</h3>
+            <div class="form-group"><label>Select User</label><select id="messageUserId"></select></div>
+            <div class="form-group"><label>Message Content</label><textarea id="messageText" rows="4" placeholder="Type your message here... It will appear in user's dashboard."></textarea></div>
+            <button id="sendMessageBtn"><i class="fa-solid fa-paper-plane"></i> Send Message</button>
+            <div id="messageResult" style="margin-top: 10px; font-size: 12px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== Admin Helper Functions ====================
+    let adminToken = localStorage.getItem('adminToken') || null;
+
+    async function adminFetch(url, options = {}) {
+        options.headers = options.headers || {};
+        options.headers['Authorization'] = `Bearer ${adminToken}`;
+        options.headers['Content-Type'] = 'application/json';
+        const res = await fetch(url, options);
+        if (res.status === 401) {
+            localStorage.removeItem('adminToken');
+            alert('Admin session expired. Please login again.');
+            location.reload();
+            throw new Error('Unauthorized');
+        }
+        return res;
+    }
+
+    function showMessage(element, text, isError = false) {
+        if (element) {
+            element.innerText = text;
+            element.style.color = isError ? '#fb7185' : '#22c55e';
+            setTimeout(() => { if (element) element.innerText = ''; }, 3000);
+        }
+    }
+
+    // ==================== Admin Login ====================
+    document.getElementById('adminLoginBtn').onclick = async () => {
+        const username = document.getElementById('adminUsername').value;
+        const password = document.getElementById('adminPassword').value;
+        const pin = document.getElementById('adminPin').value;
+        const key = document.getElementById('adminSecurityKey').value;
+        const errorDiv = document.getElementById('adminLoginError');
+        if (!username || !password || !pin || !key) {
+            errorDiv.innerText = 'All fields required';
+            return;
+        }
+        try {
+            const res = await fetch('/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, pin, key })
+            });
+            const data = await res.json();
+            if (data.success) {
+                adminToken = data.token;
+                localStorage.setItem('adminToken', adminToken);
+                document.getElementById('adminLogin').style.display = 'none';
+                document.getElementById('adminDashboard').style.display = 'block';
+                loadUsers();
+                loadApiConfigs();
+                loadUserSelectors();
+                loadLogs();
+            } else {
+                errorDiv.innerText = data.error || 'Invalid credentials';
+            }
+        } catch (err) {
+            errorDiv.innerText = 'Network error';
+        }
+    };
+
+    document.getElementById('logoutBtn').onclick = () => {
+        localStorage.removeItem('adminToken');
+        location.reload();
+    };
+
+    // ==================== Users Management ====================
+    async function loadUsers() {
+        try {
+            const res = await adminFetch('/admin/users');
+            const users = await res.json();
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+            document.getElementById('userCount').innerText = `(${users.length})`;
+            for (const u of users) {
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = u.userId;
+                row.insertCell(1).innerText = u.username || '-';
+                row.insertCell(2).innerText = u.email || '-';
+                row.insertCell(3).innerHTML = `<input type="number" class="limit-input" data-id="${u.userId}" value="${u.dailyLimit}" style="width:80px">`;
+                row.insertCell(4).innerText = `${u.searchesToday}/${u.dailyLimit}`;
+                row.insertCell(5).innerHTML = `<span class="status-badge ${u.isBlocked ? 'status-blocked' : 'status-active'}">${u.isBlocked ? 'BLOCKED' : 'ACTIVE'}</span>`;
+                row.insertCell(6).innerHTML = `<button class="msg-view" data-id="${u.userId}" data-msg="${u.adminMessage || ''}" style="background:#334155; padding:4px 8px;"><i class="fa-regular fa-comment"></i> View</button>`;
+                row.insertCell(7).innerHTML = `
+                    <button class="block-toggle" data-id="${u.userId}" data-blocked="${u.isBlocked}" style="background:${u.isBlocked ? '#22c55e' : '#ef4444'}; margin-right:6px;">${u.isBlocked ? 'Unblock' : 'Block'}</button>
+                    <button class="delete-user" data-id="${u.userId}" style="background:#ef4444;">Delete</button>
+                `;
+            }
+            // Attach limit change
+            document.querySelectorAll('.limit-input').forEach(inp => {
+                inp.addEventListener('change', async (e) => {
+                    const userId = inp.dataset.id;
+                    const newLimit = parseInt(inp.value);
+                    await adminFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify({ dailyLimit: newLimit }) });
+                    loadUsers();
+                });
+            });
+            // Block/Unblock
+            document.querySelectorAll('.block-toggle').forEach(btn => {
+                btn.onclick = async () => {
+                    const userId = btn.dataset.id;
+                    const currentlyBlocked = btn.dataset.blocked === 'true';
+                    await adminFetch(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify({ isBlocked: !currentlyBlocked }) });
+                    loadUsers();
+                };
+            });
+            // Delete
+            document.querySelectorAll('.delete-user').forEach(btn => {
+                btn.onclick = async () => {
+                    if (confirm('Delete this user permanently?')) {
+                        await adminFetch(`/admin/users/${btn.dataset.id}`, { method: 'DELETE' });
+                        loadUsers();
+                    }
+                };
+            });
+            // View message
+            document.querySelectorAll('.msg-view').forEach(btn => {
+                btn.onclick = () => {
+                    const msg = btn.dataset.msg || 'No message';
+                    alert(`Message for ${btn.dataset.id}:\n${msg}`);
+                };
+            });
+        } catch (err) { console.error(err); }
+    }
+
+    document.getElementById('createUserBtn').onclick = async () => {
+        const userId = document.getElementById('newUserId').value.trim();
+        const username = document.getElementById('newUsername').value.trim();
+        const email = document.getElementById('newEmail').value.trim();
+        const password = document.getElementById('newPassword').value;
+        const dailyLimit = parseInt(document.getElementById('newLimit').value);
+        if (!userId || !password) {
+            alert('User ID and Password are required');
+            return;
+        }
+        try {
+            const res = await adminFetch('/admin/users', {
+                method: 'POST',
+                body: JSON.stringify({ userId, username, email, password, dailyLimit })
+            });
+            if (res.ok) {
+                alert('User created');
+                document.getElementById('newUserId').value = '';
+                document.getElementById('newPassword').value = '';
+                loadUsers();
+                loadUserSelectors();
+            } else {
+                const err = await res.json();
+                alert(err.error);
+            }
+        } catch (err) { alert('Error creating user'); }
+    };
+
+    // ==================== API Configs ====================
+    async function loadApiConfigs() {
+        try {
+            const res = await adminFetch('/admin/api-configs');
+            const configs = await res.json();
+            const tbody = document.getElementById('apiTableBody');
+            tbody.innerHTML = '';
+            for (const cfg of configs) {
+                const row = tbody.insertRow();
+                row.insertCell(0).innerHTML = `<strong>${cfg.key}</strong>`;
+                row.insertCell(1).innerHTML = `<input class="api-url" data-key="${cfg.key}" value="${cfg.url || ''}" style="min-width:250px">`;
+                row.insertCell(2).innerHTML = `<input class="api-param" data-key="${cfg.key}" value="${cfg.param || ''}" style="width:100px">`;
+                row.insertCell(3).innerHTML = `<input class="api-desc" data-key="${cfg.key}" value="${cfg.desc || ''}" style="min-width:150px">`;
+                row.insertCell(4).innerHTML = `<input class="api-blacklist" data-key="${cfg.key}" value="${(cfg.extraBlacklist || []).join(',')}" style="min-width:180px">`;
+                row.insertCell(5).innerHTML = `<button class="save-api" data-key="${cfg.key}">Save</button>`;
+            }
+            // Save listeners
+            document.querySelectorAll('.save-api').forEach(btn => {
+                btn.onclick = async () => {
+                    const key = btn.dataset.key;
+                    const url = document.querySelector(`.api-url[data-key="${key}"]`).value;
+                    const param = document.querySelector(`.api-param[data-key="${key}"]`).value;
+                    const desc = document.querySelector(`.api-desc[data-key="${key}"]`).value;
+                    const blacklistStr = document.querySelector(`.api-blacklist[data-key="${key}"]`).value;
+                    const extraBlacklist = blacklistStr.split(',').map(s => s.trim()).filter(s => s);
+                    await adminFetch(`/admin/api-configs/${key}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ url, param, desc, extraBlacklist })
+                    });
+                    alert(`API ${key} updated`);
+                };
+            });
+        } catch (err) { console.error(err); }
+    }
+
+    // ==================== Logs ====================
+    async function loadLogs(userId = '') {
+        try {
+            let url = '/admin/logs?limit=200';
+            if (userId) url += `&userId=${userId}`;
+            const res = await adminFetch(url);
+            const logs = await res.json();
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '';
+            for (const log of logs) {
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = log.userId;
+                row.insertCell(1).innerText = log.apiType;
+                row.insertCell(2).innerText = log.query;
+                row.insertCell(3).innerText = new Date(log.timestamp).toLocaleString();
+                row.insertCell(4).innerHTML = log.success ? '<i class="fa-solid fa-check-circle" style="color:#22c55e"></i>' : '<i class="fa-solid fa-times-circle" style="color:#ef4444"></i>';
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    async function loadUserSelectors() {
+        const res = await adminFetch('/admin/users');
+        const users = await res.json();
+        const logFilter = document.getElementById('logUserFilter');
+        const msgSelect = document.getElementById('messageUserId');
+        logFilter.innerHTML = '<option value="">All Users</option>';
+        msgSelect.innerHTML = '';
+        for (const u of users) {
+            logFilter.innerHTML += `<option value="${u.userId}">${u.userId}</option>`;
+            msgSelect.innerHTML += `<option value="${u.userId}">${u.userId} (${u.username || 'no name'})</option>`;
+        }
+    }
+
+    document.getElementById('applyLogFilter').onclick = () => {
+        const userId = document.getElementById('logUserFilter').value;
+        loadLogs(userId);
+    };
+    document.getElementById('refreshLogsIcon').onclick = () => loadLogs();
+
+    // ==================== Send Message ====================
+    document.getElementById('sendMessageBtn').onclick = async () => {
+        const userId = document.getElementById('messageUserId').value;
+        const message = document.getElementById('messageText').value.trim();
+        if (!userId || !message) {
+            alert('Select user and enter message');
+            return;
+        }
+        const res = await adminFetch('/admin/send-message', {
+            method: 'POST',
+            body: JSON.stringify({ userId, message })
+        });
+        if (res.ok) {
+            showMessage(document.getElementById('messageResult'), 'Message sent successfully', false);
+            document.getElementById('messageText').value = '';
+        } else {
+            showMessage(document.getElementById('messageResult'), 'Failed to send', true);
+        }
+    };
+
+    // ==================== Tab Switching ====================
+    const tabs = ['users', 'api', 'logs', 'message'];
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const tabId = item.dataset.tab;
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            item.classList.add('active');
+            document.querySelectorAll('.tab').forEach(tab => tab.style.display = 'none');
+            document.getElementById(`${tabId}Tab`).style.display = 'block';
+            if (tabId === 'users') loadUsers();
+            if (tabId === 'api') loadApiConfigs();
+            if (tabId === 'logs') loadLogs();
+            if (tabId === 'message') loadUserSelectors();
+        });
+    });
+
+    // ==================== Auto-login check ====================
+    if (adminToken) {
+        // Verify token by fetching users
+        fetch('/admin/users', { headers: { 'Authorization': `Bearer ${adminToken}` } })
+            .then(res => {
+                if (res.ok) {
+                    document.getElementById('adminLogin').style.display = 'none';
+                    document.getElementById('adminDashboard').style.display = 'block';
+                    loadUsers();
+                    loadApiConfigs();
+                    loadUserSelectors();
+                    loadLogs();
+                } else {
+                    localStorage.removeItem('adminToken');
+                }
+            })
+            .catch(() => localStorage.removeItem('adminToken'));
+    }
+</script>
+</body>
+</html>
