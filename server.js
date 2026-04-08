@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema({
 });
 
 const apiConfigSchema = new mongoose.Schema({
-  key: { type: String, unique: true },   // e.g., 'phone', 'aadhaar'
+  key: { type: String, unique: true },
   url: String,
   param: String,
   desc: String,
@@ -43,19 +43,22 @@ const searchLogSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   responseTime: Number,
   success: Boolean,
-  responseData: String   // truncated
+  responseData: String
 });
 
 const User = mongoose.model('User', userSchema);
 const ApiConfig = mongoose.model('ApiConfig', apiConfigSchema);
 const SearchLog = mongoose.model('SearchLog', searchLogSchema);
 
-// ==================== Connect to MongoDB ====================
+// ==================== Connect MongoDB ====================
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
+  .then(async () => {
+    console.log('✅ MongoDB connected');
+    await seedDefaultData();
+  })
   .catch(err => console.error('MongoDB error:', err));
 
-// ==================== Seed default API configs ====================
+// ==================== Seed Default API Configs & Default User ====================
 const DEFAULT_ENDPOINTS = {
   phone: { url: 'https://ayaanmods.site/number.php?key=annonymous&number={}', param: 'number', desc: 'Mobile number lookup', extraBlacklist: ['channel_link', 'channel_name', 'API_Developer'] },
   aadhaar: { url: 'https://users-xinfo-admin.vercel.app/api?key=7demo&type=aadhar&term={}', param: 'match', desc: 'Aadhaar lookup', extraBlacklist: ['tag'] },
@@ -77,16 +80,29 @@ const DEFAULT_ENDPOINTS = {
   github_info: { url: 'https://abbas-apis.vercel.app/api/github?username={}', param: 'username', desc: 'GitHub info lookup', extraBlacklist: [] }
 };
 
-async function seedApiConfigs() {
+async function seedDefaultData() {
+  // Seed API configs
   for (const [key, cfg] of Object.entries(DEFAULT_ENDPOINTS)) {
     const exists = await ApiConfig.findOne({ key });
     if (!exists) {
       await ApiConfig.create({ key, ...cfg });
-      console.log(`📝 Seeded API config: ${key}`);
+      console.log(`📝 Seeded API: ${key}`);
     }
   }
+  // Seed default user: Jahid@Ansari / Jahid@2026$
+  const defaultUser = await User.findOne({ userId: 'Jahid@Ansari' });
+  if (!defaultUser) {
+    const passwordHash = await bcrypt.hash('Jahid@2026$', 10);
+    await User.create({
+      userId: 'Jahid@Ansari',
+      username: 'Jahid Ansari',
+      email: 'jahid@nullprotocol.com',
+      passwordHash,
+      dailyLimit: 200
+    });
+    console.log('✅ Default user created: Jahid@Ansari / Jahid@2026$');
+  }
 }
-seedApiConfigs();
 
 // ==================== Helper: Reset daily counts ====================
 async function resetDailyCounts() {
@@ -100,23 +116,22 @@ async function resetDailyCounts() {
     }
   }
 }
-setInterval(resetDailyCounts, 60 * 60 * 1000); // every hour
+setInterval(resetDailyCounts, 60 * 60 * 1000);
 
-// ==================== Middleware: User JWT ====================
+// ==================== Middleware ====================
 function authUser(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+  if (!authHeader) return res.status(401).json({ error: 'No token' });
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.USER_JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
 }
 
-// ==================== Middleware: Admin JWT ====================
 function authAdmin(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No admin token' });
@@ -126,7 +141,7 @@ function authAdmin(req, res, next) {
     if (decoded.role !== 'admin') throw new Error();
     req.admin = decoded;
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ error: 'Invalid admin token' });
   }
 }
@@ -152,23 +167,21 @@ app.get('/user/me', authUser, async (req, res) => {
   res.json(user);
 });
 
-// Protected API endpoint (same functionality as before, but with user limits & logging)
 app.get('/api', authUser, async (req, res) => {
-  const { type, query, extra, remove_branding } = req.query;
+  const { type, query, extra } = req.query;
   if (!type || !query) return res.status(400).json({ error: 'Missing type or query' });
 
   const user = await User.findOne({ userId: req.user.userId });
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (user.isBlocked) return res.status(403).json({ error: 'Blocked', reason: user.blockReason });
 
-  // Daily limit check
   const today = new Date().toDateString();
   if (user.lastResetDate !== today) {
     user.searchesToday = 0;
     user.lastResetDate = today;
   }
   if (user.searchesToday >= user.dailyLimit) {
-    return res.status(429).json({ error: 'Daily search limit reached', limit: user.dailyLimit });
+    return res.status(429).json({ error: 'Daily limit reached', limit: user.dailyLimit });
   }
 
   const apiConfig = await ApiConfig.findOne({ key: type.toLowerCase() });
@@ -186,7 +199,6 @@ app.get('/api', authUser, async (req, res) => {
   }
   const responseTime = Date.now() - startTime;
 
-  // Log to MongoDB
   await SearchLog.create({
     userId: user.userId,
     apiType: type,
@@ -196,11 +208,10 @@ app.get('/api', authUser, async (req, res) => {
     responseData: JSON.stringify(result).substring(0, 5000)
   });
 
-  // Increment user's daily count
   user.searchesToday += 1;
   await user.save();
 
-  // Clean response (blacklist + branding)
+  // Clean response (blacklist)
   function cleanObject(obj, blacklist) {
     if (!obj || typeof obj !== 'object') return obj;
     const newObj = Array.isArray(obj) ? [] : {};
@@ -212,17 +223,13 @@ app.get('/api', authUser, async (req, res) => {
     return newObj;
   }
   const blacklist = (apiConfig.extraBlacklist || []).map(s => s.toLowerCase());
-  if (remove_branding !== 'false') {
-    result = cleanObject(result, blacklist);
-  }
-  // Add footer
+  result = cleanObject(result, blacklist);
   result.developer = 'Shahid Ansari';
   result.powered_by = 'NULL PROTOCOL';
   res.json(result);
 });
 
 // ==================== Admin Routes ====================
-// Admin login (4-step)
 app.post('/admin/login', (req, res) => {
   const { username, password, pin, key } = req.body;
   if (username === process.env.ADMIN_USERNAME &&
@@ -236,7 +243,6 @@ app.post('/admin/login', (req, res) => {
   }
 });
 
-// CRUD Users
 app.get('/admin/users', authAdmin, async (req, res) => {
   const users = await User.find().select('-passwordHash');
   res.json(users);
@@ -270,7 +276,6 @@ app.delete('/admin/users/:userId', authAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-// API Configs management
 app.get('/admin/api-configs', authAdmin, async (req, res) => {
   const configs = await ApiConfig.find();
   res.json(configs);
@@ -287,7 +292,6 @@ app.put('/admin/api-configs/:key', authAdmin, async (req, res) => {
   res.json(config);
 });
 
-// Search logs
 app.get('/admin/logs', authAdmin, async (req, res) => {
   const { userId, limit = 100 } = req.query;
   const filter = userId ? { userId } : {};
@@ -295,14 +299,13 @@ app.get('/admin/logs', authAdmin, async (req, res) => {
   res.json(logs);
 });
 
-// Send message to a user
 app.post('/admin/send-message', authAdmin, async (req, res) => {
   const { userId, message } = req.body;
   await User.updateOne({ userId }, { adminMessage: message });
   res.json({ success: true });
 });
 
-// ==================== Serve Frontends ====================
+// ==================== Serve Frontend ====================
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
